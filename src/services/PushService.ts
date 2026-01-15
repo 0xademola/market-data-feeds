@@ -10,6 +10,8 @@ export class PushService extends EventEmitter {
     private ws?: WebSocket;
     private subscriptions: Set<string> = new Set();
 
+    private pingInterval?: NodeJS.Timeout;
+
     constructor(private config: PushConfig) {
         super();
     }
@@ -23,6 +25,9 @@ export class PushService extends EventEmitter {
             this.emit('connected');
             // Resubscribe if reconnecting
             this.subscriptions.forEach(t => this.subscribe(t));
+
+            // v1.3.1: Heartbeat (every 30s)
+            this.startHeartbeat();
         });
 
         this.ws.on('message', (data: any) => {
@@ -30,7 +35,28 @@ export class PushService extends EventEmitter {
             this.emit('data', data.toString());
         });
 
-        this.ws.on('error', (err) => console.error('[Push] Error:', err));
+        this.ws.on('error', (err) => {
+            console.error('[Push] Error:', err);
+            this.stopHeartbeat();
+        });
+
+        this.ws.on('close', () => {
+            console.log('[Push] Disconnected');
+            this.stopHeartbeat();
+        });
+    }
+
+    private startHeartbeat() {
+        this.stopHeartbeat();
+        this.pingInterval = setInterval(() => {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+                this.ws.ping(); // Standard WS ping
+            }
+        }, 30000);
+    }
+
+    private stopHeartbeat() {
+        if (this.pingInterval) clearInterval(this.pingInterval);
     }
 
     subscribe(topic: string) {

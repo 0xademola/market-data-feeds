@@ -30,9 +30,16 @@ export class SolanaReadAdapter extends BaseAdapter<SolanaAccount> {
         };
 
         const res = await this.client.post(rpcUrl, payload);
-        if (res.data.error) throw new Error(res.data.error.message);
+
+        // v1.3.1: Null safety check
+        if (!res.data || res.data.error) {
+            throw new Error(res.data?.error?.message || "Solana RPC Error");
+        }
+        if (!res.data.result || !res.data.result.value) {
+            throw new Error(`Account not found or invalid address: ${params.address}`);
+        }
+
         const val = res.data.result.value;
-        if (!val) throw new Error("Account not found");
 
         return SolanaAccountSchema.parse({
             address: params.address,

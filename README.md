@@ -118,6 +118,7 @@ const cpi = await feeds.econ.cpi();
 // -> { value: 315.2, date: '2025-01-01' }
 
 // --- NEW in v1.3.0: Lifestyle, Tech & Speed 🌍 ---
+// (v1.3.1 Update: Reliability Hardening included for WebSockets & Spotify)
 
 // Music (Spotify)
 const track = await feeds.music.track("11dFghVXANMlKmJXsNCbNl"); 

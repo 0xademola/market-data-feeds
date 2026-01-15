@@ -20,18 +20,26 @@ export class SpotifyAdapter extends BaseAdapter<MusicStats> {
         if (!this.config.apiKey) throw new Error("Spotify Bearer Token required");
 
         const url = `https://api.spotify.com/v1/${params.type}s/${params.id}`;
-        const res = await this.client.get(url, {
-            headers: { 'Authorization': `Bearer ${this.config.apiKey}` }
-        });
+        try {
+            const res = await this.client.get(url, {
+                headers: { 'Authorization': `Bearer ${this.config.apiKey}` }
+            });
+            const data = res.data;
 
-        const data = res.data;
-        return MusicStatsSchema.parse({
-            id: data.id,
-            name: data.name,
-            popularity: data.popularity,
-            followers: data.followers?.total,
-            timestamp: Math.floor(Date.now() / 1000)
-        });
+            return MusicStatsSchema.parse({
+                id: data.id,
+                name: data.name,
+                popularity: data.popularity,
+                followers: data.followers?.total,
+                timestamp: Math.floor(Date.now() / 1000)
+            });
+        } catch (err: any) {
+            // v1.3.1: Explicit Token Expiry Handling
+            if (err.response?.status === 401) {
+                throw new Error("Spotify Token Expired or Invalid. Please refresh your Bearer token.");
+            }
+            throw err;
+        }
     }
 
     protected async getMockData(params: { type: 'artist' | 'track', id: string }): Promise<MusicStats> {
