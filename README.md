@@ -117,6 +117,24 @@ const views = await feeds.social.tweet("123456789", "views");
 const cpi = await feeds.econ.cpi();
 // -> { value: 315.2, date: '2025-01-01' }
 
+// --- NEW in v1.3.0: Lifestyle, Tech & Speed 🌍 ---
+
+// Music (Spotify)
+const track = await feeds.music.track("11dFghVXANMlKmJXsNCbNl"); 
+// -> { name: "Anti-Hero", popularity: 98, followers: ... }
+
+// Dev (GitHub)
+const repo = await feeds.dev.repo("facebook", "react");
+// -> { stars: 216000, issues: 850, forks: 45000 }
+
+// Cross-Chain (Solana)
+const solAccount = await feeds.onchain.getSolanaAccount("EpQm...");
+// -> { lamports: 1560000000, owner: "...", executable: false }
+
+// ZK Proofs (Trust)
+const proof = await feeds.proof.proveUrl("https://api.binance.com...", "price\":(\\d+)");
+// -> { verified: true, proofId: "zk_...", provider: 'reclaim' }
+
 // --- Prediction Markets (Polymarket) ---
 const odds = await feeds.prediction.prob("Will Trump win?");
 // -> { probability: 0.55, outcome: 'Yes' }
