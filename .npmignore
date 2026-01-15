@@ -1,0 +1,7 @@
+src/
+tests/
+tsconfig.json
+.gitignore
+implementation_plan.md
+task.md
+walkthrough.md

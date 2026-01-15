@@ -1,0 +1,49 @@
+{
+    "name": "market-data-feeds",
+    "version": "1.2.0",
+    "description": "Unified data normalization and oracle feed SDK for Helios Prediction Markets",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "bin": {
+        "data-feed": "dist/bin/cli.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "test": "jest",
+        "lint": "eslint src/**/*.ts",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "oracle",
+        "prediction-market",
+        "helios",
+        "data-feed",
+        "normalization"
+    ],
+    "files": [
+        "dist/**/*",
+        "README.md"
+    ],
+    "author": "Helios Protocol",
+    "license": "MIT",
+    "dependencies": {
+        "axios": "^1.6.0",
+        "bignumber.js": "^9.1.0",
+        "viem": "^2.0.0",
+        "ws": "^8.19.0",
+        "zod": "^3.22.0"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.0.0",
+        "@types/node": "^20.0.0",
+        "@types/ws": "^8.18.1",
+        "jest": "^29.0.0",
+        "ts-jest": "^29.0.0",
+        "ts-node": "^10.9.0",
+        "typescript": "^5.0.0",
+        "@types/react": "^18.2.0"
+    },
+    "peerDependencies": {
+        "react": "^18.0.0"
+    }
+}
