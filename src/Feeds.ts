@@ -41,6 +41,7 @@ import { FinanceAdapter } from './adapters/finance/FinanceAdapter';
 import { AgentAdapter } from './adapters/agent/AgentAdapter';
 import { VisionAdapter } from './adapters/agent/VisionAdapter';
 import { deepSort } from './utils/JsonUtils';
+import { LLMManager, OpenAIProvider, AnthropicProvider, GeminiProvider, GroqProvider } from './adapters/ai/LLMProvider';
 
 // --- Facades ---
 
@@ -161,8 +162,48 @@ class PredictionFacade {
 
 export class AIFacade {
     private oracle: SemanticOracleAdapter;
-    constructor(apiKey?: string) { this.oracle = new SemanticOracleAdapter({ name: 'AI', apiKey }); }
-    async verify(question: string, context?: string) { return this.oracle.getData({ question, context }); }
+    private llmManager: LLMManager;
+
+    constructor(config?: {
+        openAiKey?: string;
+        anthropicKey?: string;
+        geminiKey?: string;
+        groqKey?: string;
+        provider?: string;
+        fallbackChain?: string[];
+    }) {
+        // Initialize LLM Manager
+        this.llmManager = new LLMManager();
+
+        // Add available providers
+        if (config?.openAiKey) {
+            this.llmManager.addProvider('openai', new OpenAIProvider(config.openAiKey));
+        }
+        if (config?.anthropicKey) {
+            this.llmManager.addProvider('anthropic', new AnthropicProvider(config.anthropicKey));
+        }
+        if (config?.geminiKey) {
+            this.llmManager.addProvider('gemini', new GeminiProvider(config.geminiKey));
+        }
+        if (config?.groqKey) {
+            this.llmManager.addProvider('groq', new GroqProvider(config.groqKey));
+        }
+
+        // Set fallback chain (default: openai → gemini → anthropic)
+        const fallbackChain = config?.fallbackChain || ['openai', 'gemini', 'anthropic', 'groq'];
+        this.llmManager.setFallbackChain(fallbackChain);
+
+        // Create oracle with LLM manager
+        this.oracle = new SemanticOracleAdapter({
+            name: 'AI',
+            llmManager: this.llmManager,
+            provider: config?.provider
+        });
+    }
+
+    async verify(question: string, context?: string) {
+        return this.oracle.getData({ question, context });
+    }
 }
 
 class MusicFacade {
@@ -245,6 +286,11 @@ export interface FeedConfig {
     fredApiKey?: string;
     privateKey?: string;
     openAiKey?: string;
+    anthropicKey?: string;
+    geminiKey?: string;
+    groqKey?: string;
+    llmProvider?: 'openai' | 'anthropic' | 'gemini' | 'groq';
+    llmFallbackChain?: string[];
     spotifyToken?: string;
     githubToken?: string;
     solanaRpcUrl?: string;
@@ -326,7 +372,16 @@ export class MarketFeeds {
             if (config.evmRpcUrl) this.crypto = new CryptoFacade(config.evmRpcUrl);
         }
         if (config.fredApiKey) this.econ = new EconFacade(config.fredApiKey);
-        if (config.openAiKey) this.ai = new AIFacade(config.openAiKey);
+        if (config.openAiKey || config.anthropicKey || config.geminiKey || config.groqKey) {
+            this.ai = new AIFacade({
+                openAiKey: config.openAiKey,
+                anthropicKey: config.anthropicKey,
+                geminiKey: config.geminiKey,
+                groqKey: config.groqKey,
+                provider: config.llmProvider,
+                fallbackChain: config.llmFallbackChain
+            });
+        }
         if (config.spotifyToken) this.music = new MusicFacade(config.spotifyToken);
         if (config.spotifyToken) this.music = new MusicFacade(config.spotifyToken);
         if (config.githubToken) this.dev = new DevFacade(config.githubToken);

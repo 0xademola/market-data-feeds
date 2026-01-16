@@ -1,32 +1,36 @@
 import { BaseAdapter, AdapterConfig } from '../BaseAdapter';
+import { LLMManager } from './LLMProvider';
 
 export interface AIResolution {
     question: string;
-    outcome: boolean; // True/False or Probability?
+    outcome: boolean;
     confidence: number;
     sources: string[];
     reasoning: string;
+    provider?: string;
+    model?: string;
+}
+
+interface SemanticOracleConfig extends AdapterConfig {
+    llmManager?: LLMManager;
+    provider?: string;
 }
 
 export class SemanticOracleAdapter extends BaseAdapter<AIResolution> {
-    constructor(config: AdapterConfig = { name: 'SemanticOracle' }) {
+    private llmManager: LLMManager;
+    private preferredProvider?: string;
+
+    constructor(config: SemanticOracleConfig = { name: 'SemanticOracle' }) {
         super({ ...config, name: 'SemanticOracle' });
+        this.llmManager = config.llmManager || new LLMManager();
+        this.preferredProvider = config.provider;
     }
 
     protected async fetchData(params: { question: string, context?: string }): Promise<AIResolution> {
-        const apiKey = this.config.apiKey;
-        if (!apiKey) throw new Error("SemanticOracle requires API Key (OpenAI)");
-
-        // 1. (Optional) Search Step - omitted for v1.1.0 MVP, relying on LLM internal knowledge or context
-        // Ideally we would fetch search results here and append to prompt.
-
-        // 2. RAG Context (Mocked for now via simple search placeholder)
-        // In a real implementation, we would inject a searchAdapter here.
         const context = params.context || "";
 
-        // 3. LLM Call
         const prompt = `
-        You are an impartial Judge for a prediction market.
+        You are an impartial Judge for a predict prediction market.
         Question: "${params.question}"
         Context: ${context ? `"${context}"` : "No external context provided. Rely on your training data."}
         
@@ -34,23 +38,23 @@ export class SemanticOracleAdapter extends BaseAdapter<AIResolution> {
         Return ONLY a JSON object: { "outcome": boolean, "confidence": number (0-1), "reasoning": "string" }
         `;
 
-        const res = await this.client.post('https://api.openai.com/v1/chat/completions', {
-            model: "gpt-4-turbo",
-            messages: [{ role: "user", content: prompt }],
+        const response = await this.llmManager.call(prompt, {
+            provider: this.preferredProvider,
+            systemPrompt: 'You are a factual oracle. Answer in valid JSON only.',
             temperature: 0,
-            json_schema: { type: "json_object" } // Enforce JSON
-        }, {
-            headers: { 'Authorization': `Bearer ${apiKey}` }
+            maxTokens: 500
         });
 
-        const json = JSON.parse(res.data.choices[0].message.content);
+        const json = JSON.parse(response.content);
 
         return {
             question: params.question,
             outcome: json.outcome,
             confidence: json.confidence,
             sources: ["LLM Knowledge Base"],
-            reasoning: json.reasoning
+            reasoning: json.reasoning,
+            provider: response.provider,
+            model: response.model
         };
     }
 
