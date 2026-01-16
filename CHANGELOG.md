@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] - 2026-01-16 - **API Modernization Release** 📱
+
+### Added
+- **XAdapter**: New adapter for X (formerly Twitter)
+  - Updated branding and documentation
+  - Warns about new pricing ($100/month minimum)
+  - Use `feeds.social.xFollowers()` and `feeds.social.xViews()`
+  
+### Changed
+- **OpenAI Models**: Updated default model to `gpt-4o-mini` (cheaper, faster)
+- **SocialMetrics Schema**: Added 'X' to valid platform values
+
+### Deprecated
+- **TwitterAdapter**: Still works but shows deprecation warning
+  - Will be removed in v3.0.0
+  - Use `XAdapter` instead
+
+### Migration Guide v2.2.0 → v2.3.0
+```typescript
+// Old (still works with warning)
+const followers = await feeds.social.followers('elonmusk');
+
+// New (recommended)
+const followers = await feeds.social.xFollowers('elonmusk');
+```
+
+**Note**: X API now requires paid subscription ($100-$42,000/month). Free tier removed in 2023.  
+**Alternative**: Use RapidAPI Twitter adapter (cheaper, ~$10/month)
+
+---
+
 ## [2.2.0] - 2026-01-16 - **Multi-LLM Support Release** 🤖
 
 ### Added

@@ -152,7 +152,7 @@ export type SportsLeague = z.infer<typeof SportsLeagueSchema>;
 
 // --- SOCIAL ---
 export const SocialMetricsSchema = z.object({
-    platform: z.enum(['YOUTUBE', 'TWITTER', 'TIKTOK', 'INSTAGRAM']),
+    platform: z.enum(['YOUTUBE', 'TWITTER', 'X', 'TIKTOK', 'INSTAGRAM']),
     entityId: z.string(), // Video ID or Username
     metric: z.string(), // 'views', 'followers', 'likes'
     value: z.number(),

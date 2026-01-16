@@ -5,6 +5,7 @@ import { OpenLigaDBAdapter } from './adapters/sports/OpenLigaDBAdapter';
 
 import { YouTubeAdapter } from './adapters/social/YouTubeAdapter';
 import { TwitterAdapter } from './adapters/social/TwitterAdapter';
+import { XAdapter } from './adapters/social/XAdapter';
 import { RapidApiTwitterAdapter } from './adapters/social/RapidApiTwitterAdapter';
 
 import { PollingService } from './services/PollingService';

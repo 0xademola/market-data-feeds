@@ -1,4 +1,4 @@
-# Market Data Feeds SDK (v2.2.0) 🤖
+# Market Data Feeds SDK (v2.3.0) 📱
 
 > **The Truth Layer for Prediction Markets.**
 > A modular, verifiable, and robust SDK to fetch, normalize, and cryptographically prove external data.

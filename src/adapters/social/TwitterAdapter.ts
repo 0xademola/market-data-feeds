@@ -1,9 +1,15 @@
 import { BaseAdapter, AdapterConfig } from '../BaseAdapter';
 import { SocialMetrics, SocialMetricsSchema } from '../../normalizers';
 
+/**
+ * @deprecated Twitter is now X. Use XAdapter instead.
+ * This adapter will be removed in v3.0.0.
+ * See: https://github.com/yourusername/market-data-feeds/blob/main/MIGRATION.md
+ */
 export class TwitterAdapter extends BaseAdapter<SocialMetrics> {
     constructor(config: AdapterConfig = { name: 'Twitter' }) {
         super({ ...config, name: 'Twitter', rateLimitRequestPerMinute: 60 });
+        console.warn('⚠️  TwitterAdapter is deprecated. Twitter rebranded to X. Use XAdapter instead. See docs for migration.');
     }
 
     protected async fetchData(params: { username?: string, tweetId?: string, metric?: string }): Promise<SocialMetrics> {
