@@ -4,6 +4,7 @@ import { feeds } from '../../Feeds';
 export interface AgentResult {
     goal: string;
     outcome: string; // The final answer or data
+    confidence: number; // 0-1
     steps: { action: string, result: string }[];
     timestamp: number;
 }
@@ -32,6 +33,7 @@ export class AgentAdapter extends BaseAdapter<AgentResult> {
         return {
             goal: params.goal,
             outcome,
+            confidence: 0.95, // High confidence by default for "Real" fetch in MVP
             steps,
             timestamp: Date.now() / 1000
         };
@@ -41,6 +43,7 @@ export class AgentAdapter extends BaseAdapter<AgentResult> {
         return {
             goal: params.goal,
             outcome: "Mocked Agent Result: CEO of Acme is Wile E. Coyote",
+            confidence: 0.4, // Low confidence for Mocks (to trigger fallback in demos)
             steps: [
                 { action: "Search Google", result: "Found LinkedIn Profile" },
                 { action: "Scrape Profile", result: "Title: CEO" }
@@ -49,3 +52,4 @@ export class AgentAdapter extends BaseAdapter<AgentResult> {
         };
     }
 }
+
