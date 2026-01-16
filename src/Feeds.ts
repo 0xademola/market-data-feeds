@@ -51,7 +51,7 @@ class SportsFacade {
     async table(leagueId: string, season?: string) { return this.db.getData({ leagueId, season }); }
 
     // Aggregated / Redundant Access
-    async fixtures(params: { sport?: string, leagueId?: string, season?: string }, strategy: AggregationStrategy = AggregationStrategy.MEDIAN) {
+    async fixtures(params: { sport?: string, leagueId?: string, season?: string }, strategy: AggregationStrategy = AggregationStrategy.CONSENSUS) {
         try {
             return await this.aggregator.aggregate(params, strategy);
         } catch (e) {
@@ -83,7 +83,7 @@ class SocialFacade {
 
     // Aggregated Tweet Metrics
     async tweet(tweetId: string, metric: 'views' | 'likes' | 'retweets' = 'views') {
-        return this.aggregator.aggregate({ tweetId, metric }, AggregationStrategy.MEDIAN);
+        return this.aggregator.aggregate({ tweetId, metric }, AggregationStrategy.CONSENSUS);
     }
 }
 

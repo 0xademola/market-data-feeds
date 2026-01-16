@@ -30,30 +30,42 @@ export abstract class BaseAdapter<T> {
      * Handles Cache, Deduplication, Retry, Rate Limiting, and Mock Mode.
      */
     public async getData(params: any): Promise<T> {
-        const key = JSON.stringify(params);
+        // 0. Deterministic Key (Sort keys recursively)
+        const key = this.stableStringify(params);
 
-        // 0. Cache Check
+        // 1. Cache Check
         const cached = this.cache.get(key);
         if (cached && Date.now() < cached.expiry) {
             console.log(`[${this.config.name}] returning CACHED data`);
             return cached.data;
         }
 
-        // 1. Mock Mode
+        // 2. Mock Mode
         if (this.config.useMocks) {
             console.log(`[${this.config.name}] returning MOCK data`);
             return this.getMockData(params);
         }
 
-        // 2. Deduplication
+        // 3. Deduplication
         if (this.pendingRequests.has(key)) {
             return this.pendingRequests.get(key)!;
+        }
+
+        // 4. Rate Limit Fail-Fast Check
+        if (this.config.rateLimitRequestPerMinute) {
+            const delay = 60000 / this.config.rateLimitRequestPerMinute;
+            const timeSinceLast = Date.now() - this.lastRequestTime;
+            const estimatedWait = Math.max(0, delay - timeSinceLast);
+
+            // If queue + wait > 10s (axios timeout), fail immediately
+            if (estimatedWait > 10000) {
+                throw new Error(`[${this.config.name}] Rate limit backlog full. Try again later.`);
+            }
         }
 
         const promise = this.retryWithBackoff(() =>
             this.executeWithRateLimit(() => this.fetchData(params))
         ).then(data => {
-            // Set Cache
             this.cache.set(key, { data, expiry: Date.now() + this.CACHE_TTL_MS });
             return data;
         }).finally(() => {
@@ -62,6 +74,12 @@ export abstract class BaseAdapter<T> {
 
         this.pendingRequests.set(key, promise);
         return promise;
+    }
+
+    private stableStringify(obj: any): string {
+        if (typeof obj !== 'object' || obj === null) return String(obj);
+        if (Array.isArray(obj)) return '[' + obj.map(x => this.stableStringify(x)).join(',') + ']';
+        return '{' + Object.keys(obj).sort().map(k => `${JSON.stringify(k)}:${this.stableStringify(obj[k])}`).join(',') + '}';
     }
 
     private async retryWithBackoff<R>(fn: () => Promise<R>): Promise<R> {
