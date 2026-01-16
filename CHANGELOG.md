@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.0] - 2026-01-16 - **Real-Time Odds Release** 📊
+
+### Added
+- **Real-Time Prediction Market Odds**:
+  - **Kalshi Adapter** - CFTC-regulated prediction markets
+  - **Manifold Adapter** - Play-money prediction markets
+  - **Cross-Platform Comparison** - Compare odds across platforms for arbitrage
+  
+### Features
+```typescript
+// Get Kalshi odds
+const kalshi = await feeds.prediction.kalshiOdds('TRUMP-WIN-2024');
+
+// Get Manifold odds  
+const manifold = await feeds.prediction.manifoldOdds('market-id');
+
+// Compare across platforms
+const comparison = await feeds.prediction.compareOdds({
+  kalshi: 'TRUMP-WIN-2024',
+  manifold: 'trump-2024'
+});
+// Returns: [{ platform: 'KALSHI', yesPrice: 52.3, ... }, ...]
+```
+
+### Use Cases
+- **Arbitrage Detection**: Find price differences across platforms
+- **Market Research**: Track prediction market sentiment
+- **Data Aggregation**: Build dashboards with live odds
+
+---
+
 ## [2.3.0] - 2026-01-16 - **API Modernization Release** 📱
 
 ### Added

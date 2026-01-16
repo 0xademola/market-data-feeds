@@ -1,6 +1,6 @@
 {
     "name": "market-data-feeds",
-    "version": "2.3.0",
+    "version": "2.4.0",
     "description": "Unified data normalization and oracle feed SDK for Helios Prediction Markets",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

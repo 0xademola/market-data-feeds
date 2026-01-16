@@ -1,9 +1,9 @@
-# Market Data Feeds SDK (v2.3.0) 📱
+# Market Data Feeds SDK (v2.4.0) 📊
 
 > **The Truth Layer for Prediction Markets.**
 > A modular, verifiable, and robust SDK to fetch, normalize, and cryptographically prove external data.
 
-**✨ New in v2.3.0**: Twitter→X rebrand with `XAdapter`, OpenAI gpt-4o-mini, API modernization
+**✨ New in v2.4.0**: Real-time odds from Kalshi, Polymarket, Manifold - Cross-platform arbitrage detection
 
 ---
 

@@ -20,6 +20,8 @@ import { EVMReadAdapter } from './adapters/onchain/EVMReadAdapter';
 import { FredAdapter } from './adapters/econ/FredAdapter';
 import { OpenWeatherAdapter } from './adapters/weather/OpenWeatherAdapter';
 import { PolymarketAdapter } from './adapters/prediction/PolymarketAdapter';
+import { KalshiAdapter } from './adapters/prediction/KalshiAdapter';
+import { ManifoldAdapter } from './adapters/prediction/ManifoldAdapter';
 
 // v1.2+
 import { SemanticOracleAdapter } from './adapters/ai/SemanticOracleAdapter';
@@ -156,9 +158,36 @@ class EconFacade {
 
 class PredictionFacade {
     private poly: PolymarketAdapter;
-    constructor() { this.poly = new PolymarketAdapter(); }
+    private kalshi: KalshiAdapter;
+    private manifold: ManifoldAdapter;
+
+    constructor() {
+        this.poly = new PolymarketAdapter();
+        this.kalshi = new KalshiAdapter();
+        this.manifold = new ManifoldAdapter();
+    }
+
+    // Legacy Polymarket (different schema)
     async prob(question: string) { return this.poly.getData({ question }); }
     async market(id: string) { return this.poly.getData({ marketId: id }); }
+
+    // New: Real-time odds (v2.4.0)
+    async kalshiOdds(marketId: string) { return this.kalshi.getData({ marketId }); }
+    async polymarketOdds(marketId: string) { return this.poly.getData({ marketId }); }
+    async manifoldOdds(marketId: string) { return this.manifold.getData({ marketId }); }
+
+    // Cross-platform comparison for arbitrage
+    async compareOdds(marketIds: { kalshi?: string, polymarket?: string, manifold?: string }) {
+        const promises = [];
+        if (marketIds.kalshi) promises.push(this.kalshiOdds(marketIds.kalshi));
+        if (marketIds.polymarket) promises.push(this.polymarketOdds(marketIds.polymarket));
+        if (marketIds.manifold) promises.push(this.manifoldOdds(marketIds.manifold));
+
+        const results = await Promise.allSettled(promises);
+        return results
+            .filter(r => r.status === 'fulfilled')
+            .map(r => (r as PromiseFulfilledResult<any>).value);
+    }
 }
 
 export class AIFacade {
