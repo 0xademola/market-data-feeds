@@ -3,6 +3,8 @@
 > **The Truth Layer for Prediction Markets.**
 > A modular, verifiable, and robust SDK to fetch, normalize, and cryptographically prove external data.
 
+**✨ New in v2.3.0**: Twitter→X rebrand with `XAdapter`, OpenAI gpt-4o-mini, API modernization
+
 ---
 
 ## 🚀 Features at a Glance
@@ -102,6 +104,14 @@ THE_SPORTS_DB_KEY=your_key           # Alternative (limited free tier)
 YOUTUBE_KEY=AIza...                  # Required for: social.views()
                                      # Get key: https://console.cloud.google.com/
                                      # Free tier: 10,000 queries/day
+
+# X (formerly Twitter) - BREAKING: Free tier removed in 2023
+X_API_KEY=...                        # Required for: social.xFollowers(), social.xViews()
+                                     # Get key: https://developer.x.com/
+                                     # Cost: $100-$42,000/month (NO free tier)
+                                     
+TWITTER_KEY=...                      # DEPRECATED: Use X_API_KEY instead
+                                     # Still works but shows warning
 
 TWITTER_BEARER_TOKEN=AAA...          # Required for: social.tweet()
                                      # Get key: https://developer.twitter.com/
