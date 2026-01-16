@@ -105,6 +105,7 @@ class CryptoFacade {
         this.aggregator = new CryptoFeeds(rpcUrl);
     }
     async price(symbol: string, timestamp?: number) { return this.aggregator.getPrice(symbol, timestamp); }
+    async pricesBatch(symbols: string[]) { return this.aggregator.getPricesBatch(symbols); }
 }
 
 class OnChainFacade {

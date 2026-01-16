@@ -34,4 +34,30 @@ export class CryptoFeeds {
             return await this.coingecko.getData({ symbol, timestamp });
         }
     }
+
+    /**
+     * Batch fetch prices (1 API call for N symbols)
+     */
+    async getPricesBatch(symbols: string[]): Promise<CryptoData[]> {
+        const url = `https://api.binance.com/api/v3/ticker/24hr`;
+        const response = await (this.binance as any).client.get(url);
+        const tickers = response.data;
+
+        return symbols.map(symbol => {
+            const ticker = tickers.find((t: any) =>
+                t.symbol === `${symbol}USDT` || t.symbol === `${symbol}USD`
+            );
+
+            if (!ticker) return null;
+
+            return {
+                asset: symbol,
+                base: 'USD',
+                price: parseFloat(ticker.lastPrice),
+                timestamp: Math.floor(Date.now() / 1000),
+                source: 'binance-batch',
+                volume24h: parseFloat(ticker.volume)
+            } as CryptoData;
+        }).filter((d): d is CryptoData => d !== null);
+    }
 }
