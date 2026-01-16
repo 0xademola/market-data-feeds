@@ -1,108 +1,174 @@
 #!/usr/bin/env node
-import { CryptoFeeds } from '../adapters/crypto';
-import { YouTubeAdapter } from '../adapters/social/YouTubeAdapter';
-import { TheSportsDBAdapter } from '../adapters/sports/TheSportsDBAdapter';
-import { TickerMapper } from '../utils/TickerMapper';
-import { RecipeDistiller } from '../distillers';
+import 'dotenv/config'; // Load .env file
+import { feeds } from '../Feeds';
+import { AggregationStrategy } from '../aggregators/MultiSourceAggregator';
 
 const args = process.argv.slice(2);
 const command = args[0];
 
+// Simple helper to parse --flag args
+const hasFlag = (flag: string) => args.includes(flag);
+const getArg = (flag: string) => {
+    const idx = args.indexOf(flag);
+    return idx > -1 ? args[idx + 1] : undefined;
+};
+
 async function main() {
-    if (!command) {
+    // 0. Runtime Configuration 
+    // .env is loaded automatically above.
+    // Explicitly configure feeds (facade will also pick up process.env by default but good to be explicit for diagnose)
+    feeds.configure({
+        sportMonksKey: process.env.SPORTMONKS_KEY,
+        sportsDbKey: process.env.THE_SPORTS_DB_KEY,
+        rapidTwitterKey: process.env.RAPID_TWITTER_KEY,
+        twitterApiKey: process.env.TWITTER_BEARER_TOKEN,
+        openWeatherKey: process.env.OPENWEATHER_KEY,
+        openAiKey: process.env.OPENAI_KEY,
+        evmRpcUrl: process.env.EVM_RPC_URL,
+        fredApiKey: process.env.FRED_API_KEY,
+        spotifyToken: process.env.SPOTIFY_TOKEN,
+        githubToken: process.env.GITHUB_TOKEN
+    });
+
+    if (!command || command === 'help') {
         console.log(`
-Usage:
-  data-feed crypto price <symbol> [timestamp]
-  data-feed social youtube <videoId> [metric]
-  data-feed social twitter <username> [metric]
-  data-feed social tweet <tweetId> [metric]
-  data-feed weather <location>
-  data-feed onchain <address> <funcSig>
-  data-feed sports match <eventId>
-  data-feed sports table <leagueId> [season]
-  data-feed recipe crypto <symbol> <targetVar>
+Usage: market-data-feeds <category> <method> [args...] [flags]
+
+Commands:
+  diagnose                              ⚡ Run a smoke test on all configured adapters
+
+Categories:
+  crypto price <symbol>                 Get price (Binance/Coingecko/Chainlink)
+  sports fixtures <leagueId>            Get fixtures (SportMonks/SportsDB)
+  social tweet <id> <metric>            Get tweet metrics
+  social youtube <videoId> [metric]     Get YouTube metrics
+  weather current <location>            Get current weather
+  onchain solana <address>              Get Solana account info
+  econ cpi                              Get CPI data (FRED)
+  prediction prob "<question>"          Get Polymarket probability
+  music track <id>                      Get Spotify track info
+  dev repo <owner> <repo>               Get GitHub repo stats
+  ai verify "<question>"                Resolve question via LLM
+
+Flags:
+  --consensus    Use Multi-Source Consensus (Majority Vote)
+  --json         Output raw JSON only
         `);
         return;
     }
 
     try {
-        if (command === 'crypto') {
-            const feeds = new CryptoFeeds();
-            const symbol = args[2];
-            const timestamp = args[3] ? parseInt(args[3]) : undefined;
-            const data = await feeds.getPrice(symbol, timestamp);
-            console.log(JSON.stringify(data, null, 2));
-            console.log(`ABI Encoded (Price): ${data.price}`);
+        let data;
+        const strategy = hasFlag('--consensus') ? AggregationStrategy.CONSENSUS : AggregationStrategy.MEDIAN;
+
+        // --- DIAGNOSE ---
+        if (command === 'diagnose') {
+            console.log("🏥 Running Diagnostics on Feeds...");
+            const report: any = {};
+
+            // 1. Weather
+            try {
+                await feeds.weather.current('London');
+                report.weather = "✅ OK";
+            } catch (e: any) { report.weather = `❌ Failed: ${e.message}`; }
+
+            // 2. Crypto
+            try {
+                await feeds.crypto.price('BTC');
+                report.crypto = "✅ OK";
+            } catch (e: any) { report.crypto = `❌ Failed: ${e.message}`; }
+
+            // 3. AI
+            if (process.env.OPENAI_KEY) {
+                try {
+                    await feeds.ai.verify("Is this a test?");
+                    report.ai = "✅ OK";
+                } catch (e: any) { report.ai = `❌ Failed: ${e.message}`; }
+            } else { report.ai = "⚠️ Skipped (No Key)"; }
+
+            console.table(report);
+            return;
         }
 
-        if (command === 'social') {
-            if (args[1] === 'youtube') {
-                const adapter = new YouTubeAdapter({ name: 'YouTube', apiKey: process.env.YOUTUBE_API_KEY });
-                const data = await adapter.getData({ videoId: args[2], metric: args[3] });
-                console.log(JSON.stringify(data, null, 2));
-            } else if (args[1] === 'twitter') {
-                // Dynamic import or direct usage if imported
-                const { TwitterAdapter } = await import('../adapters/social/TwitterAdapter');
-                const adapter = new TwitterAdapter({ name: 'Twitter', apiKey: process.env.TWITTER_API_KEY });
-                const data = await adapter.getData({ username: args[2], metric: args[3] });
-                console.log(JSON.stringify(data, null, 2));
-            } else if (args[1] === 'tweet') {
-                const { TwitterAdapter } = await import('../adapters/social/TwitterAdapter');
-                const adapter = new TwitterAdapter({ name: 'Twitter', apiKey: process.env.TWITTER_API_KEY });
-                // data-feed social tweet <id> [metric]
-                const data = await adapter.getData({ tweetId: args[2], metric: args[3] });
-                console.log(JSON.stringify(data, null, 2));
-            }
-        }
-
+        // --- SPORTS ---
         if (command === 'sports') {
-            const adapter = new TheSportsDBAdapter({ name: 'SportsDB', apiKey: process.env.SPORTSDB_KEY });
-            if (args[1] === 'match') {
-                const data = await adapter.getData({ eventId: args[2] });
-                console.log(JSON.stringify(data, null, 2));
-            } else if (args[1] === 'table') {
-                // data-feed sports table <leagueId> [season]
-                const data = await adapter.getData({ leagueId: args[2], season: args[3] });
-                console.log(JSON.stringify(data, null, 2));
+            const leagueId = args[2] || 'ALL';
+            if (args[1] === 'fixtures') {
+                console.warn(`fetching fixtures for league ${leagueId} using ${hasFlag('--consensus') ? 'CONSENSUS' : 'MEDIAN'}...`);
+                data = await feeds.sports.fixtures({ leagueId, sport: 'football' }, strategy);
             }
         }
 
-        if (command === 'weather') {
-            const { OpenWeatherAdapter } = await import('../adapters/weather/OpenWeatherAdapter');
-            const adapter = new OpenWeatherAdapter({ name: 'Weather', apiKey: process.env.OPENWEATHER_KEY });
-            const data = await adapter.getData({ location: args[1] });
-            console.log(JSON.stringify(data, null, 2));
-        }
-
-        if (command === 'onchain') {
-            const { EVMReadAdapter } = await import('../adapters/onchain/EVMReadAdapter');
-            const adapter = new EVMReadAdapter({ name: 'EVM', apiKey: process.env.RPC_URL });
-            // Usage: data-feed onchain <address> <funcName>
-            const data = await adapter.getData({
-                address: args[1],
-                functionName: args[2],
-                abi: ["function " + args[2] + "() view returns (uint256)"] // Simplified
-            });
-            console.log(JSON.stringify(data, null, 2));
-        }
-
-        if (command === 'econ') {
-            const { FredAdapter } = await import('../adapters/econ/FredAdapter');
-            const adapter = new FredAdapter({ name: 'FRED', apiKey: process.env.FRED_API_KEY });
-            // data-feed econ <seriesId>
-            const data = await adapter.getData({ seriesId: args[1] });
-            console.log(JSON.stringify(data, null, 2));
-        }
-
-        if (command === 'recipe') {
-            if (args[1] === 'crypto') {
-                const node = RecipeDistiller.toRecipeNode('crypto', { symbol: args[2] }, args[3]);
-                console.log(JSON.stringify(node, null, 2));
+        // --- SOCIAL ---
+        else if (command === 'social') {
+            if (args[1] === 'tweet') {
+                const metric = (args[3] || 'views') as any;
+                console.warn(`fetching tweet ${args[2]} ${metric}...`);
+                data = await feeds.social.tweet(args[2], metric);
+            } else if (args[1] === 'youtube') {
+                data = await feeds.social.views(args[2]);
             }
         }
+
+        // --- CRYPTO ---
+        else if (command === 'crypto') {
+            if (args[1] === 'price') {
+                data = await feeds.crypto.price(args[2]);
+            }
+        }
+
+        // --- ECON ---
+        else if (command === 'econ') {
+            if (args[1] === 'cpi') data = await feeds.econ.cpi();
+            else if (args[1] === 'gdp') data = await feeds.econ.gdp();
+        }
+
+        // --- PREDICTION ---
+        else if (command === 'prediction') {
+            if (args[1] === 'prob') data = await feeds.prediction.prob(args[2]);
+        }
+
+        // --- MUSIC ---
+        else if (command === 'music') {
+            if (args[1] === 'track') data = await feeds.music.track(args[2]);
+        }
+
+        // --- DEV ---
+        else if (command === 'dev') {
+            if (args[1] === 'repo') data = await feeds.dev.repo(args[2], args[3]);
+        }
+
+        // --- AI ---
+        else if (command === 'ai') {
+            if (args[1] === 'verify') {
+                const question = args.slice(2).join(' ') || "No question provided";
+                console.warn(`Asking Oracle: "${question}"...`);
+                data = await feeds.ai.verify(question);
+            }
+        }
+
+        // --- WEATHER ---
+        else if (command === 'weather') {
+            data = await feeds.weather.current(args[2]);
+        }
+
+        // --- ONCHAIN ---
+        else if (command === 'onchain') {
+            if (args[1] === 'solana') {
+                data = await feeds.onchain.getSolanaAccount(args[2]);
+            }
+        }
+
+        else {
+            console.error(`Unknown command: ${command}`);
+            process.exit(1);
+        }
+
+        console.log(JSON.stringify(data, null, 2));
 
     } catch (err: any) {
         console.error("Error:", err.message);
+        process.exit(1);
     }
 }
 

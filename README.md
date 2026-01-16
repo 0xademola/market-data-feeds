@@ -82,6 +82,23 @@ The Bridge to Helios Market Studio.
 
 We expose a simple, unified `feeds` facade for instant access.
 
+### 0. Quick Diagnostics (CLI)
+Test your keys or data sources instantly from the terminal.
+```bash
+# 1. Configure keys in .env
+echo "SPORTMONKS_KEY=..." > .env
+
+# 2. Run Diagnostics
+npx market-data-feeds diagnose
+# -> 🏥 Running Diagnostics on Feeds...
+# -> Weather: ✅ OK
+# -> Crypto:  ✅ OK
+# -> AI:      ❌ Failed (OpenAI key missing)
+
+# 3. Test Specific Feed
+npx market-data-feeds sports fixtures 8 --consensus
+```
+
 ### 1. Configuration
 Set your API keys once at the start of your app.
 
@@ -140,15 +157,25 @@ const proof = await feeds.proof.proveUrl("https://api.binance.com...", "price\":
 const odds = await feeds.prediction.prob("Will Trump win?");
 // -> { probability: 0.55, outcome: 'Yes' }
 
-// --- NEW in v1.3.2: Redundant Sports & Social 🏟️ ---
+// --- NEW in v1.4.0 (Developer Experience & Chainlink) ---
+// - Crypto: Hybrid Chainlink + CEX Feeds (On-Chain Truth)
+// - CLI: `diagnose` command & .env support
+// - AI: RAG Support (Context Injection)
 
-// Sports (Aggregated: SportMonks + TheSportsDB + API-Football)
+// --- NEW in v1.3.4 (Hardening) ---
+// - Error Sanitization: API keys scrubbed from logs
+// - Fail-Fast: Rate limit backlogs rejected immediately
+
+// --- NEW in v1.3.3: Redundant Sports & Social 🏟️ ---
+// Aggregated feeds with Consensus Strategy (Majority Vote)
+
+// Sports (Aggregated: SportMonks + TheSportsDB + OpenLigaDB)
 const matches = await feeds.sports.fixtures({ 
     sport: 'football',
     leagueId: 'ALL' 
-}, 'MEDIAN'); // Uses Multi-Source Median logic
+}, 'CONSENSUS'); // Majority Vote
 
-// Social (RapidAPI/TwitterAPI.io + Official API)
+// Social (Twitter + RapidAPI Fallback)
 const tweets = await feeds.social.tweet("12345", "views");
 
 // --- NEW in v1.2.0: AI Resolution 🧠 ---

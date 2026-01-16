@@ -87,14 +87,39 @@ export abstract class BaseAdapter<T> {
         while (true) {
             try {
                 return await fn();
-            } catch (error) {
+            } catch (error: any) {
                 attempt++;
-                if (attempt > this.RETRY_ATTEMPTS) throw error;
-                const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-                console.warn(`[${this.config.name}] Attempt ${attempt} failed. Retrying in ${delay}ms...`);
+                const sanitizedError = this.sanitizeError(error);
+
+                if (attempt > this.RETRY_ATTEMPTS) throw sanitizedError;
+
+                const delay = Math.pow(2, attempt) * 1000;
+                console.warn(`[${this.config.name}] Attempt ${attempt} failed: ${sanitizedError.message}. Retrying in ${delay}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
         }
+    }
+
+    private sanitizeError(error: any): Error {
+        if (!error) return new Error("Unknown Error");
+
+        const msg = error.message || String(error);
+        // Regex to scrub common secret patterns
+        // Matches: key=..., token=..., Authorization: ...
+        const scrubbedMsg = msg
+            .replace(/(key|token|api_key|access_token)=([a-zA-Z0-9_\-]+)/gi, '$1=***')
+            .replace(/(Authorization:\s*)(Bearer\s+)?([a-zA-Z0-9_\-\.]+)/gi, '$1$2***');
+
+        // If it's an Axios error, scrub the config URL
+        if (error.config && error.config.url) {
+            error.config.url = error.config.url
+                .replace(/(key|token|api_key|access_token)=([a-zA-Z0-9_\-]+)/gi, '$1=***');
+        }
+
+        if (msg !== scrubbedMsg) {
+            error.message = scrubbedMsg;
+        }
+        return error;
     }
 
     // Abstract methods to be implemented by detailed adapters

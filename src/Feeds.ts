@@ -88,7 +88,10 @@ class SocialFacade {
 }
 
 class CryptoFacade {
-    private aggregator = new CryptoFeeds();
+    private aggregator: CryptoFeeds;
+    constructor(rpcUrl?: string) {
+        this.aggregator = new CryptoFeeds(rpcUrl);
+    }
     async price(symbol: string, timestamp?: number) { return this.aggregator.getPrice(symbol, timestamp); }
 }
 
@@ -134,7 +137,7 @@ class PredictionFacade {
 class AIFacade {
     private oracle: SemanticOracleAdapter;
     constructor(apiKey?: string) { this.oracle = new SemanticOracleAdapter({ name: 'AI', apiKey }); }
-    async verify(question: string) { return this.oracle.getData({ question }); }
+    async verify(question: string, context?: string) { return this.oracle.getData({ question, context }); }
 }
 
 class MusicFacade {
@@ -205,7 +208,11 @@ export class HeliosFeeds {
             this.social = new SocialFacade(config.youtubeApiKey, config.twitterApiKey, config.rapidTwitterKey);
         }
         if (config.openWeatherKey) this.weather = new WeatherFacade(config.openWeatherKey);
-        if (config.evmRpcUrl || config.solanaRpcUrl) this.onchain = new OnChainFacade(config.evmRpcUrl, config.solanaRpcUrl);
+        if (config.evmRpcUrl || config.solanaRpcUrl) {
+            this.onchain = new OnChainFacade(config.evmRpcUrl, config.solanaRpcUrl);
+            // Also configure CryptoFacade with EVM RPC for Chainlink
+            if (config.evmRpcUrl) this.crypto = new CryptoFacade(config.evmRpcUrl);
+        }
         if (config.fredApiKey) this.econ = new EconFacade(config.fredApiKey);
         if (config.openAiKey) this.ai = new AIFacade(config.openAiKey);
         if (config.spotifyToken) this.music = new MusicFacade(config.spotifyToken);

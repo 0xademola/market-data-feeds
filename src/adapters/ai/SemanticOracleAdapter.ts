@@ -13,19 +13,24 @@ export class SemanticOracleAdapter extends BaseAdapter<AIResolution> {
         super({ ...config, name: 'SemanticOracle' });
     }
 
-    protected async fetchData(params: { question: string }): Promise<AIResolution> {
+    protected async fetchData(params: { question: string, context?: string }): Promise<AIResolution> {
         const apiKey = this.config.apiKey;
         if (!apiKey) throw new Error("SemanticOracle requires API Key (OpenAI)");
 
         // 1. (Optional) Search Step - omitted for v1.1.0 MVP, relying on LLM internal knowledge or context
         // Ideally we would fetch search results here and append to prompt.
 
-        // 2. LLM Call
+        // 2. RAG Context (Mocked for now via simple search placeholder)
+        // In a real implementation, we would inject a searchAdapter here.
+        const context = params.context || "";
+
+        // 3. LLM Call
         const prompt = `
         You are an impartial Judge for a prediction market.
         Question: "${params.question}"
+        Context: ${context ? `"${context}"` : "No external context provided. Rely on your training data."}
         
-        Determine the outcome based on your knowledge base.
+        Determine the outcome based on the context and your knowledge base.
         Return ONLY a JSON object: { "outcome": boolean, "confidence": number (0-1), "reasoning": "string" }
         `;
 
