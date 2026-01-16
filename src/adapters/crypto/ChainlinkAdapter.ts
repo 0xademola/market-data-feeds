@@ -20,11 +20,11 @@ const FEEDS: Record<string, `0x${string}`> = {
 };
 
 export class ChainlinkAdapter extends BaseAdapter<CryptoData> {
-    private client;
+    private publicClient;
 
     constructor(config: AdapterConfig & { rpcUrl?: string } = { name: 'Chainlink' }) {
         super({ ...config, name: 'Chainlink' });
-        this.client = createPublicClient({
+        this.publicClient = createPublicClient({
             chain: mainnet,
             transport: http(config.rpcUrl) // usage of public rpc if not provided
         });
@@ -40,12 +40,12 @@ export class ChainlinkAdapter extends BaseAdapter<CryptoData> {
 
         // Parallel fetch of decimals and latest data
         const [latestRound, decimals] = await Promise.all([
-            this.client.readContract({
+            this.publicClient.readContract({
                 address: feedAddress,
                 abi: CHAINLINK_ABI,
                 functionName: 'latestRoundData'
             }),
-            this.client.readContract({
+            this.publicClient.readContract({
                 address: feedAddress,
                 abi: CHAINLINK_ABI,
                 functionName: 'decimals'
