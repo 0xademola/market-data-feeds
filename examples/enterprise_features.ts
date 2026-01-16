@@ -1,5 +1,5 @@
-import { feeds } from 'market-data-feeds';
-import { MetricsAggregator } from 'market-data-feeds/instrumentation/MetricsHooks';
+import { feeds } from '../src/Feeds';
+import { MetricsAggregator } from '../src/instrumentation/MetricsHooks';
 
 /**
  * Complete v2.1.0 Feature Showcase
@@ -16,7 +16,7 @@ async function enterpriseFeatures() {
     // NEW WAY: 1 API call
     const prices = await feeds.crypto.pricesBatch(symbols);
     console.log(`Fetched ${prices.length} prices in 1 call`);
-    console.table(prices.map(p => ({ Symbol: p.asset, Price: p.price })));
+    console.table(prices.map((p: any) => ({ Symbol: p.asset, Price: p.price })));
 
     // ===== 2. ENHANCED ERROR HANDLING =====
     console.log("\n2. Enhanced Error Handling:");
@@ -39,19 +39,19 @@ async function enterpriseFeatures() {
 
     feeds.configure({
         metrics: {
-            onRequest: (adapter) => {
+            onRequest: (adapter: string) => {
                 metrics.record(adapter, 'request');
                 console.log(`📊 [${adapter}] Request started`);
             },
-            onSuccess: (adapter, duration) => {
+            onSuccess: (adapter: string, duration: number) => {
                 metrics.record(adapter, 'success', duration);
                 console.log(`✅ [${adapter}] Success in ${duration}ms`);
             },
-            onError: (adapter, error) => {
+            onError: (adapter: string, error: Error) => {
                 metrics.record(adapter, 'error');
                 console.error(`❌ [${adapter}] Error: ${error.message}`);
             },
-            onCacheHit: (adapter) => {
+            onCacheHit: (adapter: string) => {
                 metrics.record(adapter, 'cacheHit');
                 console.log(`💾 [${adapter}] Cache HIT`);
             }
