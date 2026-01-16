@@ -1,13 +1,18 @@
 import { CryptoFeeds } from './adapters/crypto';
 import { TheSportsDBAdapter } from './adapters/sports/TheSportsDBAdapter';
+import { SportMonksAdapter } from './adapters/sports/SportMonksAdapter';
+import { OpenLigaDBAdapter } from './adapters/sports/OpenLigaDBAdapter';
+
 import { YouTubeAdapter } from './adapters/social/YouTubeAdapter';
 import { TwitterAdapter } from './adapters/social/TwitterAdapter';
+import { RapidApiTwitterAdapter } from './adapters/social/RapidApiTwitterAdapter';
+
 import { PollingService } from './services/PollingService';
 import { WebSocketService } from './services/WebSocketService';
 import { RecipeDistiller } from './distillers';
 import { OracleSigner } from './validators/OracleSigner';
 import { Validator } from './validators';
-import { Aggregator } from './aggregators';
+import { Aggregator, MultiSourceAggregator, AggregationStrategy } from './aggregators';
 
 // v1.1+
 import { EVMReadAdapter } from './adapters/onchain/EVMReadAdapter';
@@ -29,24 +34,57 @@ import { PushService } from './services/PushService';
 
 class SportsFacade {
     private db: TheSportsDBAdapter;
-    constructor(apiKey?: string) {
+    private monk: SportMonksAdapter;
+    private openliga: OpenLigaDBAdapter;
+    private aggregator: MultiSourceAggregator;
+
+    constructor(apiKey?: string, sportMonksKey?: string) {
         this.db = new TheSportsDBAdapter({ name: 'TheSportsDB', apiKey });
+        this.monk = new SportMonksAdapter({ name: 'SportMonks', apiKey: sportMonksKey });
+        this.openliga = new OpenLigaDBAdapter({ name: 'OpenLigaDB' });
+
+        this.aggregator = new MultiSourceAggregator([this.db, this.monk, this.openliga]);
     }
+
+    // Direct Access
     async score(eventId: string) { return this.db.getData({ eventId }); }
     async table(leagueId: string, season?: string) { return this.db.getData({ leagueId, season }); }
+
+    // Aggregated / Redundant Access
+    async fixtures(params: { sport?: string, leagueId?: string, season?: string }, strategy: AggregationStrategy = AggregationStrategy.MEDIAN) {
+        try {
+            return await this.aggregator.aggregate(params, strategy);
+        } catch (e) {
+            // Fallback to single source if aggregator completely fails or strictly one source needed
+            console.warn("Aggregation failed, trying fallback to TheSportsDB");
+            return this.db.getData(params);
+        }
+    }
 }
 
 class SocialFacade {
     private youtube: YouTubeAdapter;
     private twitter: TwitterAdapter;
-    constructor(apiKey?: string, twitterKey?: string) {
+    private rapidTwitter: RapidApiTwitterAdapter;
+    private aggregator: MultiSourceAggregator;
+
+    constructor(apiKey?: string, twitterKey?: string, rapidKey?: string) {
         this.youtube = new YouTubeAdapter({ name: 'YouTube', apiKey });
         this.twitter = new TwitterAdapter({ name: 'Twitter', apiKey: twitterKey });
+        this.rapidTwitter = new RapidApiTwitterAdapter({ name: 'RapidTwitter', apiKey: rapidKey });
+
+        // Aggregator for X data
+        this.aggregator = new MultiSourceAggregator([this.twitter, this.rapidTwitter]);
     }
+
     async views(videoId: string) { return this.youtube.getData({ videoId, metric: 'views' }); }
     async channelMeanViews(channelId: string) { return this.youtube.getData({ channelId, metric: 'mean_views' }); }
     async followers(username: string) { return this.twitter.getData({ username, metric: 'followers' }); }
-    async tweet(tweetId: string, metric: 'views' | 'likes' | 'retweets' = 'views') { return this.twitter.getData({ tweetId, metric }); }
+
+    // Aggregated Tweet Metrics
+    async tweet(tweetId: string, metric: 'views' | 'likes' | 'retweets' = 'views') {
+        return this.aggregator.aggregate({ tweetId, metric }, AggregationStrategy.MEDIAN);
+    }
 }
 
 class CryptoFacade {
@@ -115,7 +153,9 @@ class DevFacade {
 export interface FeedConfig {
     youtubeApiKey?: string;
     twitterApiKey?: string;
+    rapidTwitterKey?: string;
     sportsDbKey?: string;
+    sportMonksKey?: string;
     openWeatherKey?: string;
     evmRpcUrl?: string;
     fredApiKey?: string;
@@ -158,9 +198,11 @@ export class HeliosFeeds {
     get(name: string) { return this.customAdapters.get(name); }
 
     configure(config: FeedConfig) {
-        if (config.sportsDbKey) this.sports = new SportsFacade(config.sportsDbKey);
-        if (config.youtubeApiKey || config.twitterApiKey) {
-            this.social = new SocialFacade(config.youtubeApiKey, config.twitterApiKey);
+        if (config.sportsDbKey || config.sportMonksKey) {
+            this.sports = new SportsFacade(config.sportsDbKey, config.sportMonksKey);
+        }
+        if (config.youtubeApiKey || config.twitterApiKey || config.rapidTwitterKey) {
+            this.social = new SocialFacade(config.youtubeApiKey, config.twitterApiKey, config.rapidTwitterKey);
         }
         if (config.openWeatherKey) this.weather = new WeatherFacade(config.openWeatherKey);
         if (config.evmRpcUrl || config.solanaRpcUrl) this.onchain = new OnChainFacade(config.evmRpcUrl, config.solanaRpcUrl);

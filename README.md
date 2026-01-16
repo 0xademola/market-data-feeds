@@ -140,6 +140,17 @@ const proof = await feeds.proof.proveUrl("https://api.binance.com...", "price\":
 const odds = await feeds.prediction.prob("Will Trump win?");
 // -> { probability: 0.55, outcome: 'Yes' }
 
+// --- NEW in v1.3.2: Redundant Sports & Social 🏟️ ---
+
+// Sports (Aggregated: SportMonks + TheSportsDB + API-Football)
+const matches = await feeds.sports.fixtures({ 
+    sport: 'football',
+    leagueId: 'ALL' 
+}, 'MEDIAN'); // Uses Multi-Source Median logic
+
+// Social (RapidAPI/TwitterAPI.io + Official API)
+const tweets = await feeds.social.tweet("12345", "views");
+
 // --- NEW in v1.2.0: AI Resolution 🧠 ---
 // Resolves qualitative questions using LLMs
 const aiRes = await feeds.ai.verify("Did Elon Musk tweet about Doge today?");

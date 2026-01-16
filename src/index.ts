@@ -2,6 +2,10 @@ export * from './adapters/BaseAdapter';
 export * from './adapters/crypto';
 export * from './adapters/social/YouTubeAdapter';
 export * from './adapters/sports/TheSportsDBAdapter';
+export * from './adapters/sports/SportMonksAdapter';
+export * from './adapters/sports/OpenLigaDBAdapter';
+export * from './adapters/social/TwitterAdapter';
+export * from './adapters/social/RapidApiTwitterAdapter';
 
 export * from './normalizers';
 export * from './validators';

@@ -45,3 +45,5 @@ export class Aggregator {
         return 1 / (1 + (cv * 10));
     }
 }
+
+export * from './MultiSourceAggregator';
