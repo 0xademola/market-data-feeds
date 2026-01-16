@@ -6,6 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.0] - 2026-01-16 - **Multi-LLM Support Release** 🤖
+
+### Added
+- **Multi-LLM Provider System**: Break free from OpenAI vendor lock-in
+  - **Anthropic Claude** (claude-3-haiku, sonnet, opus)
+  - **Google Gemini** (gemini-1.5-flash, pro) - FREE tier available!
+  - **Groq** (llama-3.1, mixtral) - Ultra-fast inference
+  - **OpenAI** (gpt-4o-mini, gpt-4) - Still supported as default
+  
+- **Automatic Fallback Chain**: Configure primary + backup providers
+  ```typescript
+  feeds.configure({
+    geminiKey: 'YOUR_KEY',
+    anthropicKey: 'YOUR_KEY',
+    llmProvider: 'gemini',              // Primary
+    llmFallbackChain: ['gemini', 'anthropic', 'openai']  // Auto-fallback
+  });
+  ```
+
+- **Cost Optimization**: Use free/cheap providers, fallback to premium
+- **Provider Metadata**: Know which LLM answered your query
+
+### Changed
+- `AIFacade` constructor now accepts config object instead of single API key
+- Responses include `provider` and `model` fields
+
+### Performance
+- Gemini Flash: Up to 5x faster than GPT-4
+- Groq: Sub-second inference for simple queries
+- Cost savings: Gemini free tier = $0/month
+
+### Migration from v2.1.0
+```typescript
+// Old (still works)
+feeds.configure({ openAiKey: 'sk-...' });
+
+// New (recommended)
+feeds.configure({
+  geminiKey: 'YOUR_FREE_KEY',
+  anthropicKey: 'sk-ant-...',
+  llmProvider: 'gemini',
+  llmFallbackChain: ['gemini', 'anthropic', 'openai']
+});
+```
+
+---
+
 ## [2.1.0] - 2026-01-16 - **Enterprise Hardening Release** 🛡️
 
 ### Added
