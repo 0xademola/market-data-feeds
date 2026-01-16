@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { CircuitBreaker, FeedError } from '../utils/CircuitBreaker';
 import { LRUCache } from '../utils/LRUCache';
+import { MetricsHooks } from '../instrumentation/MetricsHooks';
 
 export interface AdapterConfig {
     apiKey?: string;
@@ -9,6 +10,7 @@ export interface AdapterConfig {
     name: string;
     cacheTTL?: number; // Custom TTL per adapter
     cacheMaxSize?: number; // Custom cache size
+    metrics?: MetricsHooks; // Observability hooks
 }
 
 export abstract class BaseAdapter<T> {
