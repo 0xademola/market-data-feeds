@@ -85,6 +85,11 @@ OPENAI_KEY=sk-...                    # Required for: agent.plan(), agent.see(), 
                                      # Get key: https://platform.openai.com/api-keys
                                      # Cost: ~$0.002/request (GPT-4o-mini)
 
+# NEW v2.2.0: Multi-LLM Support! See MULTI_LLM_GUIDE.md
+GEMINI_API_KEY=AIza...               # Google Gemini (FREE tier!)
+ANTHROPIC_API_KEY=sk-ant-...         # Claude (better reasoning)
+GROQ_API_KEY=gsk_...                 # Groq (ultra-fast)
+
 # ===== SPORTS DATA =====
 SPORTMONKS_KEY=your_key              # Required for: sports.fixtures(), sports.score()
                                      # Get key: https://www.sportmonks.com/
