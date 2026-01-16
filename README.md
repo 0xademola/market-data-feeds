@@ -1,241 +1,179 @@
-# Helios Data + Feed SDKs (`market-data-feeds`)
+# Market Data Feeds SDK (v2.0.0)
 
-> **The Input Layer for Prediction Markets.**
-> A modular, robust SDK to fetch, normalize, and validate external truth for the Helios Protocol.
-
-Designed to work seamlessly with the `market-studio-recipe` SDK.
+> **The Truth Layer for Prediction Markets.**
+> A modular, verifiable, and robust SDK to fetch, normalize, and cryptographically prove external data.
 
 ---
 
-## 🏗 Architecture: The 5 Pillars
+## 🚀 Features at a Glance
 
-```ascii
-      +-----------------------+       +-----------------------+
-      |    Off-Chain APIs     |       |    On-Chain Oracles   |
-      | (Binance, FRED, X...) |       | (Pyth, Chainlink...)  |
-      +-----------+-----------+       +-----------+-----------+
-                  |                               |
-        +---------v-------------------------------v---------+
-        |  Layer 1: Adapters (BaseAdapter)                  |
-        |  [ Retries | Caching | Rate Limiting | Mocks ]    |
-        +-------------------------+-------------------------+
-                                  |
-        +-------------------------v-------------------------+
-        |  Layer 2: Normalization (Zod Schemas)             |
-        |  [ Crypto | Sports | Social | Econ | Prediction ] |
-        +-------------------------+-------------------------+
-                                  |
-        +-------------------------v-------------------------+
-        |  Layer 3: Validation & Filtering                  |
-        |  [ Quorum Checks | Outlier Removal | Staleness ]  |
-        +-------------------------+-------------------------+
-                                  |
-        +-------------------------v-------------------------+
-        |  Layer 4: Aggregation (Multi-Source Strategy)     |
-        |  [ Median | Mean | Weighted | Confidence Score ]  |
-        +-------------------------+-------------------------+
-                                  |
-                  +---------------v----------------+
-                  |        Layer 5: Facade         |
-                  | (HeliosFeeds / React Hooks)    |
-                  +---------------+----------------+
-                                  |
-                  +---------------v----------------+
-                  |   Helios Resolution Engine     |
-                  +--------------------------------+
-```
-
-This SDK implements a strict **5-Layer Architecture** to ensure data integrity and developer resilience.
-
-### 1. Hybrid Sources (Layer 1)
-Connects to both **Off-Chain APIs** (Binance, ESPN, Polymarket, FRED) and **On-Chain Oracles** (Pyth, Chainlink).
-- **Resilience**: Built-in "Intelligent Failover" and Retries. 
-- **DX**: Universal `TickerMapper` ("BTC" = "bitcoin" = "BTCUSDT").
-- **Mock Mode**: Deterministic fake data for testing (`useMocks: true`).
-
-### 2. Normalization (Layer 2)
-All data is converted into rigid **Zod Schemas** before it touches your app.
-- **Crypto**: `{ asset, price, timestamp, source }`
-- **Sports**: `{ matchId, homeScore, awayScore, status }`
-- **Social**: `{ platform, metric, value }`
-- **Econ**: `{ seriesId, value, date }`
-- **Prediction**: `{ probability, outcome }`
-
-### 3. Validation (Layer 3)
-Quality control middleware.
-- **Quorum**: `Validator.checkQuorum(sources, 3)`
-- **Outliers**: `Validator.filterOutliers(prices)` (Standard Deviation check)
-- **Staleness**: Reject data older than $T$ seconds.
-
-### 4. Aggregation (Layer 4)
-Combine multiple truth points (v1.1+).
-- **Strategies**: Mean, Median, Weighted Mean.
-- **Redundancy**: Fetch from 3 sources in parallel and take the median.
-
-### 5. Recipe Integration (Layer 5)
-The Bridge to Helios Market Studio.
-- **Export**: `feeds.recipe.toRecipeNode(...)` generates a logic node for the resolution engine.
+| Feature | Description |
+| :--- | :--- |
+| **8 Data Categories** | Crypto, Finance, Sports, Social, On-Chain, Weather, Econ, Web. |
+| **The Truth Layer** | **Merkle Proofs** & **Oracle Signatures** for trustless verification. |
+| **Autonomous Agents** | Delegate complex research ("Who is CEO?") to AI agents. |
+| **Real-Time** | WebSocket support for sub-second crypto updates. |
+| **Hardened** | Automatic retries, rate-limiting, caching, and error sanitization. |
+| **Interactive CLI** | Explore data and generate proofs from your terminal. |
 
 ---
 
-## 👩‍💻 Developer DX
+## 📦 Installation
 
-We expose a simple, unified `feeds` facade for instant access.
-
-### 0. Quick Diagnostics (CLI)
-Test your keys or data sources instantly from the terminal.
 ```bash
-# 1. Configure keys in .env
-echo "SPORTMONKS_KEY=..." > .env
-
-# 2. Run Diagnostics
-npx market-data-feeds diagnose
-# -> 🏥 Running Diagnostics on Feeds...
-# -> Weather: ✅ OK
-# -> Crypto:  ✅ OK
-# -> AI:      ❌ Failed (OpenAI key missing)
-
-# 3. Test Specific Feed
-npx market-data-feeds sports fixtures 8 --consensus
+npm install market-data-feeds
 ```
 
-### 1. Configuration
-Set your API keys once at the start of your app.
+---
+
+## 🛠 Configuration
+
+Configure the SDK once at the root of your application.
 
 ```typescript
 import { feeds } from 'market-data-feeds';
 
 feeds.configure({
-    youtubeApiKey: process.env.YOUTUBE_KEY,
+    // --- Finance & Crypto ---
+    financeApiKey: process.env.FINANCE_KEY,   // AlphaVantage/Yahoo
+    evmRpcUrl: process.env.RPC_URL,           // Ethereum/Polygon
+    
+    // --- Sports & Social ---
+    sportMonksKey: process.env.SPORTMONKS_KEY, 
     twitterApiKey: process.env.TWITTER_KEY,
-    sportsDbKey: process.env.SPORTS_KEY,
-    fredApiKey: process.env.FRED_KEY, // Economics
-    openAiKey: process.env.OPENAI_KEY, // AI Resolution (v1.2+)
-    evmRpcUrl: process.env.RPC_URL    // On-Chain
+    
+    // --- AI & Agents ---
+    openAiKey: process.env.OPENAI_KEY,        // For Agent/Vision
+    
+    // --- Oracle Identity ---
+    privateKey: process.env.ORACLE_PRIVATE_KEY // For signing feeds
 });
-```
-
-### 2. Simple Fetching
-
-```typescript
-// --- Crypto ---
-const btc = await feeds.crypto.price("BTC");
-// -> { price: 65000, timestamp: ... }
-
-// --- Weather ---
-const london = await feeds.weather.current("London");
-// -> { temperature: 15.5, humidity: 82 }
-
-// --- Social (Twitter/X) ---
-const views = await feeds.social.tweet("123456789", "views");
-// -> { value: 500000, metric: 'views' }
-
-// --- Economics (FRED) ---
-const cpi = await feeds.econ.cpi();
-// -> { value: 315.2, date: '2025-01-01' }
-
-// --- NEW in v1.3.0: Lifestyle, Tech & Speed 🌍 ---
-// (v1.3.1 Update: Reliability Hardening included for WebSockets & Spotify)
-
-// Music (Spotify)
-const track = await feeds.music.track("11dFghVXANMlKmJXsNCbNl"); 
-// -> { name: "Anti-Hero", popularity: 98, followers: ... }
-
-// Dev (GitHub)
-const repo = await feeds.dev.repo("facebook", "react");
-// -> { stars: 216000, issues: 850, forks: 45000 }
-
-// Cross-Chain (Solana)
-const solAccount = await feeds.onchain.getSolanaAccount("EpQm...");
-// -> { lamports: 1560000000, owner: "...", executable: false }
-
-// ZK Proofs (Trust)
-const proof = await feeds.proof.proveUrl("https://api.binance.com...", "price\":(\\d+)");
-// -> { verified: true, proofId: "zk_...", provider: 'reclaim' }
-
-// --- Prediction Markets (Polymarket) ---
-const odds = await feeds.prediction.prob("Will Trump win?");
-// -> { probability: 0.55, outcome: 'Yes' }
-
-// --- NEW in v1.4.0 (Developer Experience & Chainlink) ---
-// - Crypto: Hybrid Chainlink + CEX Feeds (On-Chain Truth)
-// - CLI: `diagnose` command & .env support
-// - AI: RAG Support (Context Injection)
-
-// --- NEW in v1.3.4 (Hardening) ---
-// - Error Sanitization: API keys scrubbed from logs
-// - Fail-Fast: Rate limit backlogs rejected immediately
-
-// --- NEW in v1.3.3: Redundant Sports & Social 🏟️ ---
-// Aggregated feeds with Consensus Strategy (Majority Vote)
-
-// Sports (Aggregated: SportMonks + TheSportsDB + OpenLigaDB)
-const matches = await feeds.sports.fixtures({ 
-    sport: 'football',
-    leagueId: 'ALL' 
-}, 'CONSENSUS'); // Majority Vote
-
-// Social (Twitter + RapidAPI Fallback)
-const tweets = await feeds.social.tweet("12345", "views");
-
-// --- NEW in v1.2.0: AI Resolution 🧠 ---
-// Resolves qualitative questions using LLMs
-const aiRes = await feeds.ai.verify("Did Elon Musk tweet about Doge today?");
-// -> { outcome: true, confidence: 0.95, reasoning: "..." }
-
-// --- NEW in v1.2.0: Historic Analysis ⏳ ---
-// Calculate mean views of a YouTube channel (last 10 videos)
-const avgViews = await feeds.social.channelMeanViews("UC_x5XG1OV2P6uZZ5FSM9Ttw");
-// -> { value: 154000, metric: 'mean_views' }
-
-// --- On-Chain ---
-const totalSupply = await feeds.onchain.read(
-    '0xdAC17...', // USDT
-    ['function totalSupply() view returns (uint256)'],
-    'totalSupply'
-);
-```
-
-### 3. React Hooks (v1.1)
-Use data effortlessly in your frontend.
-
-```typescript
-import { useDataFeed } from 'market-data-feeds/hooks';
-
-function BitcoinPrice() {
-    const { data, loading } = useDataFeed('crypto', 'BTC');
-    if (loading) return <div>Loading...</div>;
-    return <div>BTC: ${data.price}</div>;
-}
-```
-
-### 4. Production Hardening (Built-in)
-The SDK automatically handles reliability for you:
-*   **Retries**: Exponential backoff (1s, 2s, 4s) on API failures.
-*   **Caching**: 30s TTL in-memory cache to save API credits.
-*   **Deduplication**: Merges identical pending requests.
-
-### 5. Time Travel (Snapshot Resolution)
-For resolving markets at a specific deadline.
-
-```typescript
-const deadline = 1735689600; // Jan 1, 2025
-const snapshot = await feeds.crypto.price('BTC', deadline);
-// Fetches historical candle/OHLCV data automatically.
 ```
 
 ---
 
-## 🛡️ Security & Reliability
+## 📚 Usage Guide
 
-1.  **API Key Safety**:
-    *   **Backend/CLI**: Use Environment Variables (`process.env.KEY`). **NEVER** hardcode keys.
-    *   **Frontend**: Do not expose sensitive keys. Use a backend proxy.
-2.  **Real Data vs Mocks**:
-    *   By default, adapters **attempt to fetch Real Data**.
-    *   **Mock Mode**: Explicitly enable `useMocks: true` in `AdapterConfig` only for local testing.
-3.  **Sanitization**:
-    *   Errors are sanitized to prevent secret leakage in logs.
+### 1. 💰 Finance & Real-World Assets
+Fetch stock, commodity, and forex data.
+```typescript
+const apple = await feeds.finance.price('AAPL');
+// -> { symbol: 'AAPL', price: 150.25, volume: ... }
+
+const eurUsd = await feeds.forex.rate('EUR', 'USD');
+// -> { rate: 1.08, timestamp: ... }
+```
+
+### 2. 🤖 Autonomous Agents
+Delegate complex tasks to AI.
+```typescript
+// Research
+const plan = await feeds.agent.plan("Who won the 1990 World Cup?");
+// -> { goal: "...", outcome: "West Germany", confidence: 0.99 }
+
+// Vision
+const score = await feeds.agent.see('https://img.url/scoreboard.jpg', 'What is the score?');
+// -> { answer: "2-1", confidence: 0.95 }
+```
+
+### 3. 🛡️ The Truth Layer (Proofs)
+Generate cryptographic proofs for your data.
+
+**A. Merkle Inclusion Proofs** (Batch Verification)
+```typescript
+const data = [{ price: 100 }, { price: 200 }];
+const tree = feeds.proof.createTree(data);
+
+// Generate proof for specific item
+const proof = feeds.proof.getProof({ price: 100 }, tree);
+
+// Verify (On-chain or Off-chain)
+const isValid = feeds.proof.verify({ price: 100 }, proof, tree.root);
+```
+
+**B. Signed Feeds** (Oracle Identity)
+```typescript
+const signature = await feeds.signData({ price: 100, symbol: 'BTC' });
+// -> "0xabc..." (Verifiable via ecrecover)
+```
+
+### 4. ⚽ Sports & Social
+aggregated data with consensus.
+```typescript
+// Sports (Consensus of 3 providers)
+const matches = await feeds.sports.fixtures({ leagueId: 'EPL' }, 'CONSENSUS');
+
+// Social Metrics
+const views = await feeds.social.tweet('123456789', 'views');
+```
+
+### 5. 🌍 World Data
+```typescript
+const weather = await feeds.weather.current('London');
+const cpi = await feeds.econ.cpi(); // Inflation data
+const random = await feeds.random.coinFlip(); // Verifiable Randomness (Drand)
+```
+
+---
+
+## 📖 Full API Reference
+
+| Facade | Method | Args | Returns |
+| :--- | :--- | :--- | :--- |
+| **`crypto`** | `price` | `symbol` | `{ price, volume, timestamp }` |
+| **`finance`** | `price` | `symbol` | `{ price, volume, high, low }` |
+| **`forex`** | `rate` | `base, target` | `{ rate, timestamp }` |
+| **`sports`** | `fixtures` | `params, strategy` | `Match[]` (Aggregated) |
+| | `score` | `eventId` | `{ home, away, status }` |
+| **`social`** | `tweet` | `id, metric` | `{ value, metric }` |
+| | `views` | `videoId` | `{ views }` |
+| **`agent`** | `plan` | `goal` | `{ outcome, confidence, steps }` |
+| | `see` | `url, query` | `{ answer, confidence }` |
+| **`proof`** | `createTree` | `data[]` | `{ root, leaves }` |
+| | `getProof` | `item, tree` | `bytes32[]` |
+| **`onchain`** | `read` | `addr, abi, fn` | `Result` (EVM) |
+| **`web`** | `search` | `query` | `Result[]` |
+
+---
+
+## 🔐 Secret Management
+
+**How are keys stored?**
+1.  **Storage**: Keys should reside in your `.env` file (e.g. `OPENAI_KEY=sk-...`).
+2.  **Injection**: You pass them to `feeds.configure()` at app startup.
+3.  **Memory**: The SDK moves them into **private class properties** inside each Adapter.
+4.  **Retrieval**: Adapters access `this.config.apiKey` internally.
+
+**Security Guaranteed**:
+*   The SDK **never logs** your config object.
+*   The SDK **scrubs** any leaked keys from error messages before throwing.
+
+---
+
+## 💻 CLI Experience
+
+The SDK comes with a powerful interactive CLI for exploration and debugging.
+
+### Start Interactive Mode
+```bash
+npx market-data-feeds interactive
+```
+
+### Commands
+```bash
+feeds> finance price TSLA --table
+feeds> agent plan "Find the latest block number on Ethereum"
+feeds> proof create '[{"id":1},{"id":2}]'
+feeds> crypto price BTC --watch
+```
+
+---
+
+## 🔒 Security
+
+-   **No Leaks**: Error logs are automatically scrubbed of API keys.
+-   **Determinism**: All hashing and signing operations use deep-sort serialization to prevent malleability attacks.
+-   **Safety**: Rate limits are enforced with "Fail-Fast" logic to prevent hanging processes.
 
 ---
 

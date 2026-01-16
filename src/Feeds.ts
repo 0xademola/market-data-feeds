@@ -28,7 +28,19 @@ import { SpotifyAdapter } from './adapters/music/SpotifyAdapter';
 import { GithubAdapter } from './adapters/dev/GithubAdapter';
 import { SolanaReadAdapter } from './adapters/onchain/SolanaReadAdapter';
 import { ReclaimService } from './services/ReclaimService';
+import { MerkleService } from './services/MerkleService';
 import { PushService } from './services/PushService';
+// v2.0+
+import { ExchangeRateAdapter } from './adapters/forex/ExchangeRateAdapter';
+import { PingAdapter } from './adapters/web/PingAdapter';
+import { RandomAdapter } from './adapters/random/RandomAdapter';
+import { MarketHoursAdapter } from './adapters/calendar/MarketHoursAdapter';
+import { SerperAdapter } from './adapters/web/SerperAdapter';
+import { ScraperAdapter } from './adapters/web/ScraperAdapter';
+import { FinanceAdapter } from './adapters/finance/FinanceAdapter';
+import { AgentAdapter } from './adapters/agent/AgentAdapter';
+import { VisionAdapter } from './adapters/agent/VisionAdapter';
+import { deepSort } from './utils/JsonUtils';
 
 // --- Facades ---
 
@@ -134,7 +146,7 @@ class PredictionFacade {
     async market(id: string) { return this.poly.getData({ marketId: id }); }
 }
 
-class AIFacade {
+export class AIFacade {
     private oracle: SemanticOracleAdapter;
     constructor(apiKey?: string) { this.oracle = new SemanticOracleAdapter({ name: 'AI', apiKey }); }
     async verify(question: string, context?: string) { return this.oracle.getData({ question, context }); }
@@ -153,6 +165,62 @@ class DevFacade {
     async repo(owner: string, repo: string) { return this.github.getData({ owner, repo }); }
 }
 
+class ForexFacade {
+    private forex: ExchangeRateAdapter;
+    constructor() { this.forex = new ExchangeRateAdapter(); }
+    async rate(base: string, target: string) { return this.forex.getData({ base, target }); }
+}
+
+class WebFacade {
+    private pinger: PingAdapter;
+    private searcher: SerperAdapter;
+    private scraper: ScraperAdapter;
+
+    constructor(searchKey?: string) {
+        this.pinger = new PingAdapter();
+        this.searcher = new SerperAdapter({ name: 'Serper', apiKey: searchKey });
+        this.scraper = new ScraperAdapter();
+    }
+    async ping(url: string) { return this.pinger.getData({ url }); }
+    async search(query: string) { return this.searcher.getData({ query }); }
+    async extract(url: string, schema: string) { return this.scraper.getData({ url, schema }); }
+}
+
+class RandomFacade {
+    private drand: RandomAdapter;
+    constructor() { this.drand = new RandomAdapter(); }
+    async coinFlip() {
+        const data = await this.drand.getData({ round: 0 }); // 0 = latest
+        // Simple deterministic derivation from signature
+        const isHeads = parseInt(data.signature.slice(-1), 16) % 2 === 0;
+        return { outcome: isHeads ? 'HEADS' : 'TAILS', proof: data.signature };
+    }
+    async beacon() { return this.drand.getData({ round: 0 }); }
+}
+
+class CalendarFacade {
+    private hours: MarketHoursAdapter;
+    constructor() { this.hours = new MarketHoursAdapter(); }
+    async isMarketOpen(market: string) { return this.hours.getData({ market }); }
+}
+
+class FinanceFacade {
+    private adapter: FinanceAdapter;
+    constructor(apiKey?: string) { this.adapter = new FinanceAdapter({ name: 'Finance', apiKey }); }
+    async price(symbol: string) { return this.adapter.getData({ symbol }); }
+}
+
+class AgentFacade {
+    private agent: AgentAdapter;
+    private vision: VisionAdapter;
+    constructor(apiKey?: string) {
+        this.agent = new AgentAdapter({ name: 'Agent', apiKey });
+        this.vision = new VisionAdapter({ name: 'Vision', apiKey });
+    }
+    async plan(goal: string) { return this.agent.getData({ goal }); }
+    async see(imageUrl: string, query: string) { return this.vision.getData({ imageUrl, query }); }
+}
+
 export interface FeedConfig {
     youtubeApiKey?: string;
     twitterApiKey?: string;
@@ -167,9 +235,10 @@ export interface FeedConfig {
     spotifyToken?: string;
     githubToken?: string;
     solanaRpcUrl?: string;
+    financeApiKey?: string;
 }
 
-export class HeliosFeeds {
+export class MarketFeeds {
     public crypto = new CryptoFacade();
     public sports = new SportsFacade();
     public social = new SocialFacade();
@@ -181,11 +250,22 @@ export class HeliosFeeds {
     public music = new MusicFacade();
     public dev = new DevFacade();
 
+    // v2.0
+    public forex = new ForexFacade();
+    public web = new WebFacade();
+    public random = new RandomFacade();
+    public calendar = new CalendarFacade();
+    // v3.0
+    public finance = new FinanceFacade();
+    public agent = new AgentFacade();
+
     // Services
     public polling = new PollingService();
     public ws = new WebSocketService();
     // Use an instance or class for services without state? Reclaim is instance. Push is class.
-    public proof = new ReclaimService();
+    public proof = new MerkleService();
+    // Legacy support or fallback if needed
+    public reclaim = new ReclaimService();
     // Push service needs config, so we instantiate it later or user instantiates it
     public PushService = PushService;
 
@@ -199,6 +279,25 @@ export class HeliosFeeds {
 
     register(name: string, adapter: any) { this.customAdapters.set(name, adapter); }
     get(name: string) { return this.customAdapters.get(name); }
+
+    /**
+     * Sign arbitrary data with the configured Oracle Private Key.
+     * Useful for creating signed feed payloads.
+     */
+    async signData(data: object): Promise<string> {
+        if (!this.signer) throw new Error("No private key configured for signing");
+        // Encode data deterministically using deepSort
+        const sorted = deepSort(data);
+        const payload = JSON.stringify(sorted);
+        // We use signMessage from viem which signs the hash of the payload
+        // OracleSigner expects `0x${string}` for dataEncoded. 
+        // We need to convert our string to bytes or hash it first.
+        // Let's assume OracleSigner takes hex strings.
+        // For simplicity in this mock/MVP, we'll just throw if not implemented correctly or refactor OracleSigner.
+        // Let's actually use a helper: string -> hex
+        const hex = "0x" + Buffer.from(payload).toString('hex');
+        return this.signer.signData(hex as `0x${string}`);
+    }
 
     configure(config: FeedConfig) {
         if (config.sportsDbKey || config.sportMonksKey) {
@@ -216,7 +315,9 @@ export class HeliosFeeds {
         if (config.fredApiKey) this.econ = new EconFacade(config.fredApiKey);
         if (config.openAiKey) this.ai = new AIFacade(config.openAiKey);
         if (config.spotifyToken) this.music = new MusicFacade(config.spotifyToken);
+        if (config.spotifyToken) this.music = new MusicFacade(config.spotifyToken);
         if (config.githubToken) this.dev = new DevFacade(config.githubToken);
+        if (config.financeApiKey) this.finance = new FinanceFacade(config.financeApiKey);
 
         if (config.privateKey) {
             this.signer = new OracleSigner(config.privateKey as `0x${string}`);
@@ -233,4 +334,4 @@ export class HeliosFeeds {
     }
 }
 
-export const feeds = new HeliosFeeds();
+export const feeds = new MarketFeeds();

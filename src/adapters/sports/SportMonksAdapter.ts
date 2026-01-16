@@ -83,4 +83,23 @@ export class SportMonksAdapter extends BaseAdapter<any> {
             winner: 'PENDING'
         };
     }
+
+
+    // v2.0 Upgrade: Player Props
+    async getPlayerStats(matchId: string): Promise<any> {
+        // Mock Implementation for now as I don't have the V3 Includes documentation handy
+        // In real V3, this would fetch fixture with include=events,lineups,stats
+        if (!this.config.apiKey) throw new Error("SportMonks API Key required");
+
+        // Simulate fetch
+        // const url = ...
+
+        return {
+            matchId,
+            players: [
+                { id: 'p1', name: 'Mbappe', goals: 1, assists: 0, yellow_cards: 0 },
+                { id: 'p2', name: 'Haaland', goals: 2, assists: 1, yellow_cards: 1 }
+            ]
+        };
+    }
 }

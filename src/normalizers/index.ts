@@ -12,7 +12,18 @@ export const CryptoDataSchema = z.object({
     marketCap: z.number().optional()
 });
 
+
 export type CryptoData = z.infer<typeof CryptoDataSchema>;
+
+// --- FINANCE (v3.0) ---
+export const FinanceDataSchema = z.object({
+    symbol: z.string(),
+    price: z.number(),
+    changePercent: z.number().optional(),
+    volume: z.number().optional(),
+    timestamp: z.number()
+});
+export type FinanceData = z.infer<typeof FinanceDataSchema>;
 
 export function encodeCryptoData(data: CryptoData): `0x${string}` {
     const priceBigInt = parseUnits(data.price.toString(), 18); // Standard 18 decimals
@@ -203,11 +214,60 @@ export const EVMDataSchema = z.object({
 export type EVMData = z.infer<typeof EVMDataSchema>;
 
 export function encodeEVMData(data: EVMData): `0x${string}` {
-    // For EVM data, we usually just want to pass the Value on-chain.
-    // Encoded as contract call result or bytes.
-    // Simplifying to string for now.
     return encodeAbiParameters(
         [{ type: 'string', name: 'value' }],
         [String(data.value)]
     );
 }
+
+// --- FOREX (v2.0) ---
+export const ForexDataSchema = z.object({
+    base: z.string(),
+    target: z.string(),
+    rate: z.number(),
+    timestamp: z.number()
+});
+export type ForexData = z.infer<typeof ForexDataSchema>;
+
+// --- RANDOMNESS (v2.0) ---
+export const RandomDataSchema = z.object({
+    round: z.number(),
+    randomness: z.string(), // Hex string
+    signature: z.string(),
+    timestamp: z.number()
+});
+export type RandomData = z.infer<typeof RandomDataSchema>;
+
+// --- WEB UTILS (v2.0) ---
+export const PingDataSchema = z.object({
+    url: z.string(),
+    latency: z.number(), // ms
+    status: z.number(), // 200, 404, etc.
+    timestamp: z.number()
+});
+export type PingData = z.infer<typeof PingDataSchema>;
+
+// --- CALENDAR (v2.0) ---
+export const MarketStatusSchema = z.object({
+    market: z.string(), // NYSE, NASDAQ, FOREX, CRYPTO
+    status: z.enum(['OPEN', 'CLOSED', 'HALTED']),
+    nextOpen: z.number().optional(), // Timestamp
+    nextClose: z.number().optional(), // Timestamp
+    timestamp: z.number()
+});
+export type MarketStatus = z.infer<typeof MarketStatusSchema>;
+
+// --- SEARCH (v2.0) ---
+export const SearchResultSchema = z.object({
+    query: z.string(),
+    results: z.array(z.object({
+        title: z.string(),
+        link: z.string(),
+        snippet: z.string(),
+        date: z.string().optional()
+    })),
+    timestamp: z.number()
+});
+export type SearchResult = z.infer<typeof SearchResultSchema>;
+
+

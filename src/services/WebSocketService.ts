@@ -72,6 +72,16 @@ export class WebSocketService extends EventEmitter {
         this.subscriptions.add(stream);
     }
 
+    /**
+     * Helper to subscribe to a crypto ticker for a symbol (assumes USDT pair)
+     * @param symbol e.g., 'BTC', 'ETH'
+     */
+    subscribeTicker(symbol: string) {
+        const stream = `${symbol.toLowerCase()}usdt@ticker`;
+        this.subscribe(stream);
+        return stream;
+    }
+
     unsubscribe(stream: string) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             const payload = {
