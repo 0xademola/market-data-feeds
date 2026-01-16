@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { CircuitBreaker, FeedError } from '../utils/CircuitBreaker';
 
 export interface AdapterConfig {
     apiKey?: string;
@@ -13,6 +14,7 @@ export abstract class BaseAdapter<T> {
     private pendingRequests: Map<string, Promise<T>> = new Map();
     private requestQueue: Array<() => void> = [];
     private lastRequestTime: number = 0;
+    private circuitBreaker: CircuitBreaker = new CircuitBreaker(5, 60000, 3);
 
     constructor(config: AdapterConfig) {
         this.config = config;
@@ -63,17 +65,36 @@ export abstract class BaseAdapter<T> {
             }
         }
 
-        const promise = this.retryWithBackoff(() =>
-            this.executeWithRateLimit(() => this.fetchData(params))
-        ).then(data => {
+        // 5. Execute with Circuit Breaker + Retry
+        const promise = this.circuitBreaker.execute(
+            () => this.executeWithRetry(params),
+            this.config.name
+        );
+        this.pendingRequests.set(key, promise);
+
+        try {
+            const data = await promise;
+            // Cache Success
             this.cache.set(key, { data, expiry: Date.now() + this.CACHE_TTL_MS });
             return data;
-        }).finally(() => {
-            this.pendingRequests.delete(key);
-        });
+        } catch (err: any) {
+            // Enhanced error handling
+            if (err instanceof FeedError) {
+                throw err; // Already enhanced
+            }
 
-        this.pendingRequests.set(key, promise);
-        return promise;
+            // Sanitize and wrap in FeedError
+            const sanitizedError = this.sanitizeError(err);
+            throw new FeedError(`[${this.config.name}] ${sanitizedError.message}`, {
+                source: this.config.name,
+                statusCode: err.response?.status,
+                isRetryable: this.isRetryableError(err),
+                originalError: err
+            });
+        } finally {
+            this.pendingRequests.delete(key);
+            this.lastRequestTime = Date.now(); // Update last request time after completion/failure
+        }
     }
 
     private stableStringify(obj: any): string {
@@ -82,22 +103,43 @@ export abstract class BaseAdapter<T> {
         return '{' + Object.keys(obj).sort().map(k => `${JSON.stringify(k)}:${this.stableStringify(obj[k])}`).join(',') + '}';
     }
 
-    private async retryWithBackoff<R>(fn: () => Promise<R>): Promise<R> {
+    private async executeWithRetry(params: any): Promise<T> {
         let attempt = 0;
         while (true) {
             try {
-                return await fn();
+                return await this.executeWithRateLimit(() => this.fetchData(params));
             } catch (error: any) {
                 attempt++;
-                const sanitizedError = this.sanitizeError(error);
 
-                if (attempt > this.RETRY_ATTEMPTS) throw sanitizedError;
+                if (attempt > this.RETRY_ATTEMPTS) {
+                    throw error;
+                }
+
+                // Don't retry non-retryable errors
+                if (!this.isRetryableError(error)) {
+                    throw error;
+                }
 
                 const delay = Math.pow(2, attempt) * 1000;
-                console.warn(`[${this.config.name}] Attempt ${attempt} failed: ${sanitizedError.message}. Retrying in ${delay}ms...`);
+                console.warn(`[${this.config.name}] Attempt ${attempt} failed. Retrying in ${delay}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
         }
+    }
+
+    private isRetryableError(error: any): boolean {
+        // Network errors are retryable
+        if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+            return true;
+        }
+
+        // HTTP status codes that are retryable
+        const retryableStatusCodes = [408, 429, 500, 502, 503, 504];
+        if (error.response?.status && retryableStatusCodes.includes(error.response.status)) {
+            return true;
+        }
+
+        return false;
     }
 
     private sanitizeError(error: any): Error {

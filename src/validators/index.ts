@@ -1,3 +1,5 @@
+export * from './OracleSigner';
+export * from './schemas';
 export class Validator {
     /**
      * Checks if the number of successful sources meets the minimum quorum.
