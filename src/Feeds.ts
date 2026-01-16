@@ -121,10 +121,22 @@ class OnChainFacade {
 
 class WeatherFacade {
     private adapter: OpenWeatherAdapter;
+
     constructor(apiKey?: string) {
         this.adapter = new OpenWeatherAdapter({ name: 'OpenWeather', apiKey });
     }
-    async current(location: string) { return this.adapter.getData({ location }); }
+
+    async current(location: string) {
+        try {
+            return await this.adapter.getData({ location });
+        } catch (err: any) {
+            console.warn(`[Weather] Primary failed for ${location}: ${err.message}. Using fallback...`);
+
+            // Fallback: Use mock mode for basic data
+            const mockAdapter = new OpenWeatherAdapter({ name: 'OpenWeather-Fallback', useMocks: true });
+            return await mockAdapter.getData({ location });
+        }
+    }
 }
 
 class EconFacade {
