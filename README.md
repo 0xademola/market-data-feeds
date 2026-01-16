@@ -150,22 +150,51 @@ const random = await feeds.random.coinFlip(); // Verifiable Randomness (Drand)
 
 ---
 
-## 💻 CLI Experience
+## 💻 Interactive CLI
 
-The SDK comes with a powerful interactive CLI for exploration and debugging.
+The SDK includes a powerful interactive CLI for exploration and testing.
 
-### Start Interactive Mode
+### Quick Start
 ```bash
+# Interactive mode
 npx market-data-feeds interactive
+
+# Or install globally
+npm install -g market-data-feeds
+data-feed interactive
 ```
 
-### Commands
-```bash
-feeds> finance price TSLA --table
-feeds> agent plan "Find the latest block number on Ethereum"
-feeds> proof create '[{"id":1},{"id":2}]'
-feeds> crypto price BTC --watch
-```
+### Available Commands
+
+**Finance & Crypto**
+- `crypto price BTC` - Real-time crypto prices
+- `finance price AAPL` - Stock prices
+- `forex rate USD EUR` - Exchange rates
+
+**Sports & Social**
+- `sports fixtures EPL` - Match fixtures
+- `social tweet <id> views` - Twitter metrics
+- `social views <videoId>` - YouTube stats
+
+**AI & Agents**
+- `agent plan "your question"` - AI research
+- `agent see <url> "query"` - Vision analysis
+
+**World Data**
+- `weather current London` - Weather data
+- `econ cpi` - Economic indicators
+- `random coinFlip` - Verifiable randomness
+- `prediction prob "query"` - Polymarket odds
+
+**Truth Layer**
+- `proof create '[{"data":"test"}]'` - Merkle proofs
+- `sign <data>` - Oracle signatures
+
+**Utilities**
+- `help` - Show all commands
+- `help <category>` - Category help
+- `--watch` - Live monitoring
+- `--table` - Table format
 
 ---
 
