@@ -22,7 +22,7 @@ async function testBatchProcessing() {
             console.warn(`  ⚠️  ${symbol}: ${e.message}`);
         }
     }
-    const sequential Time = Date.now() - start1;
+    const sequentialTime = Date.now() - start1;
     console.log(`  ⏱️  Time: ${sequentialTime}ms`);
     console.log(`  ✅ Fetched: ${sequentialResults.length} prices\n`);
 

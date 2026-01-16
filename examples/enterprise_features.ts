@@ -71,7 +71,7 @@ async function enterpriseFeatures() {
     // If AlphaVantage fails, falls back to Binance for crypto-like tickers
     try {
         const btcPrice = await feeds.finance.price('BTC');
-        console.log(`BTC Price: $${btcPrice.price} (source: ${btcPrice.source})`);
+        console.log(`BTC Price: $${btcPrice.price}`);
     } catch (e: any) {
         console.error('All sources failed:', e.message);
     }
