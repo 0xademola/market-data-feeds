@@ -22,7 +22,7 @@ export class FeedError extends Error {
 /**
  * Circuit Breaker States
  */
-enum CircuitState {
+export enum CircuitState {
     CLOSED = 'CLOSED',     // Normal operation
     OPEN = 'OPEN',         // Failures exceeded threshold, blocking calls
     HALF_OPEN = 'HALF_OPEN' // Testing if service recovered
