@@ -1,11 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 import { CircuitBreaker, FeedError } from '../utils/CircuitBreaker';
+import { LRUCache } from '../utils/LRUCache';
 
 export interface AdapterConfig {
     apiKey?: string;
     rateLimitRequestPerMinute?: number;
     useMocks?: boolean;
     name: string;
+    cacheTTL?: number; // Custom TTL per adapter
+    cacheMaxSize?: number; // Custom cache size
 }
 
 export abstract class BaseAdapter<T> {
@@ -19,12 +22,20 @@ export abstract class BaseAdapter<T> {
     constructor(config: AdapterConfig) {
         this.config = config;
         this.client = axios.create({ timeout: 10000 });
+
+        // Initialize LRU cache with config
+        this.CACHE_TTL_MS = config.cacheTTL || 30000;
+        this.cache = new LRUCache<T>(
+            config.cacheMaxSize || 1000,
+            this.CACHE_TTL_MS
+        );
+
         this.processQueue();
     }
 
-    // Cache Storage: Key -> { data, expiry }
-    private cache: Map<string, { data: T; expiry: number }> = new Map();
-    private readonly CACHE_TTL_MS = 30000; // 30 seconds default
+    // Enhanced LRU Cache
+    private cache: LRUCache<T>;
+    private readonly CACHE_TTL_MS: number;
     private readonly RETRY_ATTEMPTS = 3;
 
     /**
@@ -37,9 +48,9 @@ export abstract class BaseAdapter<T> {
 
         // 1. Cache Check
         const cached = this.cache.get(key);
-        if (cached && Date.now() < cached.expiry) {
-            console.log(`[${this.config.name}] returning CACHED data`);
-            return cached.data;
+        if (cached) {
+            console.log(`[${this.config.name}] Cache HIT`);
+            return cached;
         }
 
         // 2. Mock Mode
@@ -75,7 +86,7 @@ export abstract class BaseAdapter<T> {
         try {
             const data = await promise;
             // Cache Success
-            this.cache.set(key, { data, expiry: Date.now() + this.CACHE_TTL_MS });
+            this.cache.set(key, data, this.CACHE_TTL_MS);
             return data;
         } catch (err: any) {
             // Enhanced error handling
